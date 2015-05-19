@@ -30,8 +30,9 @@ typedef union jvalue {
 
 struct JNIEnv
     {
-    void CallStaticMethodA(jclass jniClass, jmethodID jniMethod, jvalue*){}
-    void CallStaticMethodA(jclass jniClass, jmethodID jniMethod, ...){}
+    //void CallStaticMethodA(jclass jniClass, jmethodID jniMethod, jvalue*){}
+    template <typename T>
+    T CallStaticMethodA(jclass jniClass, jmethodID jniMethod, ...){ return T(); }
     };
 
 struct JniString
@@ -240,7 +241,7 @@ namespace utils
     void CallToJni(JNIEnv* env, jclass clazz, jmethodID method)
         {
         std::cout << "Wow: zero arguments\n";
-        env->CallStaticMethodA(clazz, method);
+        env->CallStaticMethodA<void>(clazz, method);
         }
 
     template <typename... Args>
@@ -249,7 +250,7 @@ namespace utils
         std::cout << "Wow: " << sizeof...(args) << "\n";
         const int size = sizeof...(args);
         jvalue vals[size] = { (static_cast<jvalue>(JniHolder(env, args)), 0)... };
-        env->CallStaticMethodA(clazz, method, vals);
+        env->CallStaticMethodA<void>(clazz, method, vals);
         }
 
     ///////////////////////////////////////////////////////////
@@ -257,6 +258,9 @@ namespace utils
     template <typename MethodType>
     struct Impl
         {
+        // for each type need concrete method in JNI
+        //  int -> CallIntMethod
+        //  void -> CallVoidMethod...
         template <typename... Args>
         static MethodType CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
 
@@ -268,7 +272,7 @@ namespace utils
     struct Impl <void>
         {
         template <typename... Args>
-        static void CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+        static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
             {
             std::cout << "void method\n";
             CallToJni(env, clazz, method, args...);
@@ -280,26 +284,33 @@ namespace utils
     struct Impl <int>
         {
         template <typename... Args>
-        static int CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+        static int CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
             {
             std::cout << "int method\n";
-            CallToJni(env, clazz, method, args...);
-            return 1;
+            const int size = sizeof...(args);
+            jvalue vals[size] = { (static_cast<jvalue>(JniHolder(env, args)), 0)... };
+            return env->CallStaticMethodA<int>(clazz, method, vals);
+            }
+        };
+
+    template <>
+    struct Impl <std::string>
+        {
+        template <typename... Args>
+        static std::string CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+            {
+            std::cout << "int method\n";
+            const int size = sizeof...(args);
+            jvalue vals[size] = { (static_cast<jvalue>(JniHolder(env, args)), 0)... };
+            return env->CallStaticMethodA<std::string>(clazz, method, vals);
             }
         };
 
     template <typename MethodType, typename... Args>
-    MethodType CallMethodImpl(const char* className, const char* mname, std::string&& signature, Args... args)
-       {
-       std::cout << "Signature: " << signature << std::endl;
-       return Impl<MethodType>::CallMethod(args...);
-       }
+    MethodType CallStaticMethod(const char* className, const char* mname, Args... args);
 
     template <typename MethodType, typename... Args>
-    MethodType CallMethod(const char* className, const char* mname, Args... args);
-
-    template <typename MethodType, typename... Args>
-    MethodType CallMethod(const char* className, const char* mname, Args... args)
+    MethodType CallStaticMethod(const char* className, const char* mname, Args... args)
         {
         std::string signature_string = "(";
         GetType(signature_string, args...);
@@ -311,7 +322,7 @@ namespace utils
         jclass clazz;
         jmethodID method = 0;
         JNIEnv env;
-        return Impl<MethodType>::CallMethod(&env, clazz, method, args...);
+        return Impl<MethodType>::CallStaticMethod(&env, clazz, method, args...);
         }
 
     } // utils
@@ -321,20 +332,22 @@ namespace utils
 int _tmain(int argc, _TCHAR* argv[])
     {
     std::cout << "0 parameters\n";
-    utils::CallMethod<void>("a", "b");
+    utils::CallStaticMethod<void>("a", "b");
     
     std::cout << "\n1 parameter\n";
-    utils::CallMethod<void>("a", "b", 1);
+    utils::CallStaticMethod<void>("a", "b", 1);
     std::cout << "\n2 parameters\n";
-    utils::CallMethod<void>("a", "b", 1, "s");
+    utils::CallStaticMethod<void>("a", "b", 1, "s");
     std::cout << "\n3 parameters\n";
-    int a = utils::CallMethod<int>("a", "b", 1, "s", 1.3f);
+    int a = utils::CallStaticMethod<int>("a", "b", 1, "s", 1.3f);
 
     std::cout << "\n3 parameters\n";
-    utils::CallMethod<void>("a", "b", 1, "s", 1.3);
+    utils::CallStaticMethod<void>("a", "b", 1, "s", 1.3);
 
     std::cout << "\n6 parameters\n";
-    utils::CallMethod<void>("a", "b", 1, "s", 1.3, true, '5', 1.f);
+    utils::CallStaticMethod<void>("a", "b", 1, "s", 1.3, true, '5', 1.f);
+
+
     return 0;
     }
 

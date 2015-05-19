@@ -12,10 +12,9 @@
 
 /////////
 
-struct jobject
-    {
-
-    };
+struct jobject {    };
+struct jclass { };
+typedef int jmethodID;
 
 typedef union jvalue {
     bool z;
@@ -31,10 +30,9 @@ typedef union jvalue {
 
 struct JNIEnv
     {
-    void CallStaticMethodA(int jniClass, int jniMethod, jvalue*){}
+    void CallStaticMethodA(jclass jniClass, jmethodID jniMethod, jvalue*){}
+    void CallStaticMethodA(jclass jniClass, jmethodID jniMethod, ...){}
     };
-
-
 
 struct JniString
     {
@@ -46,6 +44,15 @@ struct JniObject : boost::noncopyable
     {
     JniObject(JNIEnv*, jobject){}
     jobject get() { return jobject(); }
+    };
+
+class JniClass
+    : private boost::noncopyable
+    {
+    public:
+        jclass get() {
+            return jclass();
+            }
     };
 
 /////////////////////////////
@@ -143,17 +150,6 @@ struct JniHolder
         }
     };
 
-void Convert(JNIEnv* jEnv, std::vector<JniHolder>& objects)
-    {
-    }
-
-template <typename T, typename... Args>
-void Convert(JNIEnv* jEnv, std::vector<JniHolder>& objects, T value, Args... args)
-    {
-    objects.push_back(JniHolder(value));
-    Convert(jEnv, objects, args...);
-    }
-
 namespace utils
     {
 
@@ -238,74 +234,22 @@ namespace utils
         signatureString += GetTypeName<T>();
         GetType(signatureString, args...);
         }
-    //////////////////////////////////////////////   
 
-    void CallRealJni(JNIEnv* env, int jniClass, int jniMethod, jvalue* valArray)
-        {
-        env->CallStaticMethodA(jniClass, jniMethod, valArray);
-        }
+    //////////////////////////////////////////////
 
-    void CallToJni()
+    void CallToJni(JNIEnv* env, jclass clazz, jmethodID method)
         {
-        std::cout << "0\n";
-        //JNIEnv env;
-        //CallRealJni(&env, 0, 1, nullptr);
-        }
-
-    template <typename T>
-    void CallToJni(T t)
-        {
-        std::cout << "1\n";
-        JNIEnv env;
-        jvalue vals[1];
-        vals[0] = static_cast<jvalue>(JniHolder{ &env, t });
-        CallRealJni(&env, 0, 1, vals);
-        }
-
-    template <typename T, typename T1>
-    void CallToJni(T t, T1 t1)
-        {
-        std::cout << "2\n";
-        JNIEnv env;
-        jvalue vals[2];
-        vals[0] = static_cast<jvalue>(JniHolder{ &env, t });
-        vals[1] = static_cast<jvalue>(JniHolder{ &env, t1 });
-        CallRealJni(&env, 0, 1, vals);
-        }
-
-    template <typename T, typename T1, typename T2>
-    void CallToJni(T t, T1 t1, T2 t2)
-        {
-        std::cout << "3\n";
-        JNIEnv env;
-        jvalue vals[3];
-        vals[0] = static_cast<jvalue>(JniHolder{ &env, t });
-        vals[1] = static_cast<jvalue>(JniHolder{ &env, t1 });
-        vals[2] = static_cast<jvalue>(JniHolder{ &env, t2 });
-        CallRealJni(&env, 0, 1, vals);
-        }
-
-    template <typename T, typename T1, typename T2, typename T3>
-    void CallToJni(T t, T1 t1, T2 t2, T3 t3)
-        {
-        std::cout << "4\n";
-        JNIEnv env;
-        jvalue vals[4];
-        vals[0] = static_cast<jvalue>(JniHolder(&env, t));
-        vals[1] = static_cast<jvalue>(JniHolder(&env, t1));
-        vals[2] = static_cast<jvalue>(JniHolder(&env, t2));
-        vals[3] = static_cast<jvalue>(JniHolder(&env, t3));
-        CallRealJni(&env, 0, 1, vals);
+        std::cout << "Wow: zero arguments\n";
+        env->CallStaticMethodA(clazz, method);
         }
 
     template <typename... Args>
-    void CallToJni(Args... args)
+    void CallToJni(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
         {
         std::cout << "Wow: " << sizeof...(args) << "\n";
-        JNIEnv env;
         const int size = sizeof...(args);
-        jvalue vals[size] = { (static_cast<jvalue>(JniHolder(&env, args)), 0)... };
-        CallRealJni(&env, 0, 1, vals);
+        jvalue vals[size] = { (static_cast<jvalue>(JniHolder(env, args)), 0)... };
+        env->CallStaticMethodA(clazz, method, vals);
         }
 
     ///////////////////////////////////////////////////////////
@@ -314,20 +258,20 @@ namespace utils
     struct Impl
         {
         template <typename... Args>
-        static MethodType CallMethod(Args... args);
+        static MethodType CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
 
         template <typename... Args>
-        static void CallStaticMethod(Args... args);
+        static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
         };
 
     template <>
     struct Impl <void>
         {
         template <typename... Args>
-        static void CallMethod(Args... args)
+        static void CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
             {
             std::cout << "void method\n";
-            CallToJni(args...);
+            CallToJni(env, clazz, method, args...);
             return;
             }
         };
@@ -336,18 +280,14 @@ namespace utils
     struct Impl <int>
         {
         template <typename... Args>
-        static int CallMethod(Args... args)
+        static int CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
             {
             std::cout << "int method\n";
-            CallToJni(args...);
+            CallToJni(env, clazz, method, args...);
             return 1;
             }
         };
 
-    // two possible variants
-    //  1. overload and typical specialization for methods returning void|string|float|int...
-    //  2. dynamic configuration as for type structure
-    //  preferred 1st
     template <typename MethodType, typename... Args>
     MethodType CallMethodImpl(const char* className, const char* mname, std::string&& signature, Args... args)
        {
@@ -367,9 +307,11 @@ namespace utils
 
         signature_string += GetTypeName<MethodType>();
 
-
         std::cout << "Signature: " << signature_string << std::endl;
-        return Impl<MethodType>::CallMethod(args...);
+        jclass clazz;
+        jmethodID method = 0;
+        JNIEnv env;
+        return Impl<MethodType>::CallMethod(&env, clazz, method, args...);
         }
 
     } // utils

@@ -30,13 +30,13 @@ namespace Android
         JniString(JNIEnv* env, const char* arg)
             : m_env(env)
             {
-            //m_jstr = env->NewStringUTF(arg);
+            m_jstr = env->NewStringUTF(arg);
             }
 
         ~JniString()
             {
-            //if (m_jstr)
-             //   m_env->DeleteLocalRef(m_jstr);
+            if (m_jstr)
+                m_env->DeleteLocalRef(m_jstr);
             }
 
         jobject get() { return m_jstr; }
@@ -166,182 +166,247 @@ namespace Android
         jvalue get() { return val; }
         };
 
-    namespace utils
-        {
 
-        //////////////////////////////////////////////
-        template <typename T>
-        std::string GetTypeName();
+	namespace impl
+	{
 
-        template <>
-        std::string GetTypeName<void>()
-            {
-            return "V";
-            }
+	template <typename T>
+	std::string GetTypeName();
+	/////////////////////////////////////////////////////////
+	// GetTypeName partial specializations
 
-        template <>
-        std::string GetTypeName<bool>()
-            {
-            return "Z";
-            }
+	template <>
+	std::string GetTypeName<void>()
+		{
+		return "V";
+		}
 
-        template <>
-        std::string GetTypeName<unsigned char>()
-            {
-            return "B";
-            }
+	template <>
+	std::string GetTypeName<bool>()
+		{
+		return "Z";
+		}
 
-        template <>
-        std::string GetTypeName<char>()
-            {
-            return "C";
-            }
+	template <>
+	std::string GetTypeName<unsigned char>()
+		{
+		return "B";
+		}
 
-        template <>
-        std::string GetTypeName<short>()
-            {
-            return "S";
-            }
+	template <>
+	std::string GetTypeName<char>()
+		{
+		return "C";
+		}
 
-        template <>
-        std::string GetTypeName<int>()
-            {
-            return "I";
-            }
+	template <>
+	std::string GetTypeName<short>()
+		{
+		return "S";
+		}
 
-        template <>
-        std::string GetTypeName<long>()
-            {
-            return "J";
-            }
+	template <>
+	std::string GetTypeName<int>()
+		{
+		return "I";
+		}
 
-        template <>
-        std::string GetTypeName<float>()
-            {
-            return "F";
-            }
+	template <>
+	std::string GetTypeName<long>()
+		{
+		return "J";
+		}
 
-        template <>
-        std::string GetTypeName<double>()
-            {
-            return "D";
-            }
+	template <>
+	std::string GetTypeName<float>()
+		{
+		return "F";
+		}
 
-        template <>
-        std::string GetTypeName<const char*>()
-            {
-            return "Ljava/lang/String;";
-            }
+	template <>
+	std::string GetTypeName<double>()
+		{
+		return "D";
+		}
 
-        template <>
-        std::string GetTypeName<jobject>()
-            {
-            return "Ljava/lang/Object;";
-            }
+	template <>
+	std::string GetTypeName<const char*>()
+		{
+		return "Ljava/lang/String;";
+		}
 
-        //////////////////////////////////////////////
+	template <>
+	std::string GetTypeName<std::string>()
+		{
+		return "Ljava/lang/String;";
+		}
 
-		template <typename T>
-		std::string GetType(T val)
+	template <>
+	std::string GetTypeName<jobject>()
+		{
+		return "Ljava/lang/Object;";
+		}
+
+	/////////////////////////////////////////////////////////
+	// GetType
+
+	template <typename T>
+	std::string GetType(const T&)
+		{
+		return GetTypeName<T>();
+		}
+
+	/////////////////////////////////////////////////////////
+	// Recursive GetType
+
+	void GetTypeRecursive(std::string&)
+		{   }
+
+	template <typename T, typename... Args>
+	void GetTypeRecursive(std::string& signatureString, T value, Args... args)
+		{
+		signatureString += GetTypeName<T>();
+		GetTypeRecursive(signatureString, args...);
+		}
+
+	/////////////////////////////////////////////////////////
+	// Impl class interface -> call all needed methods; 
+	//		Realizations in partial specializations
+
+	template <typename MethodType>
+	struct Impl
+		{
+		// for each type need concrete method in JNI
+		//  int -> CallIntMethod
+		//  void -> CallVoidMethod...
+		template <typename... Args>
+		static MethodType CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
+
+		template <typename... Args>
+		static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
+		};
+
+	/////////////////////////////////////////////////////////
+	// Impl<void>
+
+	template <>
+	struct Impl <void>
+		{
+		template <typename... Args>
+		static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
 			{
-			return GetTypeName<T>();
+			const int size = sizeof...(args);
+			if (size != 0)
+				{
+				jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
+				return env->CallStaticVoidMethodA(clazz, method, vals);
+				}
+
+			return env->CallStaticVoidMethod(clazz, method);
 			}
+		};
 
-        void GetType(std::string&)
-            {   }
+	/////////////////////////////////////////////////////////
+	// Impl<int>
 
-        template <typename T, typename... Args>
-        void GetType(std::string& signatureString, T value, Args... args)
-            {
-            signatureString += GetTypeName<T>();
-            GetType(signatureString, args...);
-            }
+	template <>
+	struct Impl <int>
+		{
+		template <typename... Args>
+		static int CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+			{
+			const int size = sizeof...(args);
+			if (size != 0)
+				{
+				jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
+				return env->CallStaticIntMethodA(clazz, method, vals);
+				}
 
-        ///////////////////////////////////////////////////////////
+			return env->CallStaticIntMethod(clazz, method);
+			}
+		};
 
-        template <typename MethodType>
-        struct Impl
-            {
-            // for each type need concrete method in JNI
-            //  int -> CallIntMethod
-            //  void -> CallVoidMethod...
-            template <typename... Args>
-            static MethodType CallMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
+	/////////////////////////////////////////////////////////
+	// Impl<float>
 
-            template <typename... Args>
-            static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args);
-            };
+	template <>
+	struct Impl <float>
+		{
+		template <typename... Args>
+		static float CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+			{
+			const int size = sizeof...(args);
+			if (size != 0)
+				{
+				jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
+				return env->CallStaticFloatMethodA(clazz, method, vals);
+				}
 
-        template <>
-        struct Impl <void>
-            {
-            template <typename... Args>
-            static void CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
-                {
-				const int size = sizeof...(args);
-				if (size != 0)
-					{
-					jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
-					return env->CallStaticVoidMethodA(clazz, method, vals);
-					}
+			return env->CallStaticFloatMethod(clazz, method);
+			}
+		};
 
-				return env->CallStaticVoidMethod(clazz, method);
-                }
-            };       
+	/////////////////////////////////////////////////////////
+	// Impl<std::string>
 
-        template <>
-        struct Impl <int>
-            {
-            template <typename... Args>
-            static int CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
-                {
-                const int size = sizeof...(args);
-				if (size != 0)
-					{
-					jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
-					return env->CallStaticIntMethodA(clazz, method, vals);
-					}
+	template <>
+	struct Impl <std::string>
+		{
+		template <typename... Args>
+		static std::string CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
+			{
+			const int size = sizeof...(args);
+			jstring jstr;
+			if (size != 0)
+				{
+				jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
+				jstr = (jstring)env->CallStaticObjectMethodA(clazz, method, vals);
+				}
+			else
+				jstr = (jstring)env->CallStaticObjectMethod(clazz, method);
 
-				return env->CallStaticIntMethod(clazz, method);
-                }
-            };
+			if (!jstr)
+				return std::string();
 
-        template <>
-        struct Impl <std::string>
-            {
-            template <typename... Args>
-            static std::string CallStaticMethod(JNIEnv* env, jclass clazz, jmethodID method, Args... args)
-                {
-                const int size = sizeof...(args);
-                jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
-                return "";// env->CallStaticMethodA<std::string>(clazz, method, vals);
-                }
-            };
+			const char* chars = env->GetStringUTFChars(jstr, NULL);
+			std::string result;
+			if (chars)
+				result = chars;
 
-        template <typename MethodType, typename... Args>
-        MethodType CallStaticMethod(const char* className, const char* mname, Args... args);
+			env->ReleaseStringUTFChars(jstr, chars);
+			return result;
+			}
+		};
 
-        template <typename MethodType, typename... Args>
-        MethodType CallStaticMethod(const char* className, const char* mname, Args... args)
-            {		
-			const size_t arg_num = sizeof...(Args);
-			std::string signatures[arg_num] = { GetType(args)... };
+	} // impl
 
-			std::string signature_string;
-			signature_string.reserve(15);
-			signature_string += "(";
-			for (size_t i = 0; i < arg_num; ++i)
-				signature_string += signatures[i];
-			signature_string += ")";
-			signature_string += GetTypeName<MethodType>();
+    
+	/////////////////////////////////////////////////////////
+	// CallStaticMethod implemetation
 
-            JNIEnv *env = getEnv();
-            JniClass clazz(env, className);
-            jmethodID method = env->GetStaticMethodID(clazz.get(), mname, signature_string.c_str());
-            return Impl<MethodType>::CallStaticMethod(env, clazz.get(), method, args...);
-            }
+	template <typename MethodType, typename... Args>
+	MethodType CallStaticMethod(const char* className, const char* mname, Args... args)
+		{
+		using namespace impl;
+		const size_t arg_num = sizeof...(Args);
+		std::string signatures[arg_num] = { GetType(args)... };
 
-        } // utils
+		std::string signature_string;
+		signature_string.reserve(15);
+		signature_string += "(";
+		for (size_t i = 0; i < arg_num; ++i)
+			signature_string += signatures[i];
+		signature_string += ")";
+		signature_string += GetTypeName<MethodType>();
+
+		JNIEnv *env = getEnv();
+		JniClass clazz(env, className);
+		jmethodID method = env->GetStaticMethodID(clazz.get(), mname, signature_string.c_str());
+		return Impl<MethodType>::CallStaticMethod(env, clazz.get(), method, args...);
+		}
+
+	/////////////////////////////////////////////////////////
+	// CallMethod implemetation
 
     } // Android
 

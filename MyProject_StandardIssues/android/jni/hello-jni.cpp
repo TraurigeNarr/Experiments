@@ -29,38 +29,6 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
 extern "C" jstring Java_com_example_hellojni_HelloJni_stringFromJNI( JNIEnv* env,
                                                   jobject thiz )
 {
-#if defined(__arm__)
-  #if defined(__ARM_ARCH_7A__)
-    #if defined(__ARM_NEON__)
-      #if defined(__ARM_PCS_VFP)
-        #define ABI "armeabi-v7a/NEON (hard-float)"
-      #else
-        #define ABI "armeabi-v7a/NEON"
-      #endif
-    #else
-      #if defined(__ARM_PCS_VFP)
-        #define ABI "armeabi-v7a (hard-float)"
-      #else
-        #define ABI "armeabi-v7a"
-      #endif
-    #endif
-  #else
-   #define ABI "armeabi"
-  #endif
-#elif defined(__i386__)
-   #define ABI "x86"
-#elif defined(__x86_64__)
-   #define ABI "x86_64"
-#elif defined(__mips64)  /* mips64el-* toolchain defines __mips__ too */
-   #define ABI "mips64"
-#elif defined(__mips__)
-   #define ABI "mips"
-#elif defined(__aarch64__)
-   #define ABI "arm64-v8a"
-#else
-   #define ABI "unknown"
-#endif
-
     return env->NewStringUTF("Hello from JNI !  Compiled with ABI");
 }
 
@@ -68,9 +36,7 @@ extern "C" void Java_com_example_hellojni_HelloJni_nativeTestSpeed(JNIEnv* env, 
 	{
 	const std::string className = "com/example/hellojni/HelloJni";
 
-	const int COUNT = 1000000;
-
-	
+	const int COUNT = 1000;
 
 	time_t t_begin = clock();
 
@@ -87,22 +53,21 @@ extern "C" void Java_com_example_hellojni_HelloJni_nativeTestSpeed(JNIEnv* env, 
 	t_begin = clock();
 	for (int i = 0; i < COUNT; ++i)
 		{
-		Android::utils::CallStaticMethod<void>(className.c_str(), "TestMethod", 1);
+		Android::CallStaticMethod<void>(className.c_str(), "TestMethod", 1);
 		}
 
 	long t_wrapper_end = clock() - t_begin;
 	
-	Android::utils::CallStaticMethod<void>(className.c_str(), "SetTime", t_usual_end, t_wrapper_end);
+	Android::CallStaticMethod<void>(className.c_str(), "SetTime", t_usual_end, t_wrapper_end);
 
 	}
 
 
-extern "C" void Java_com_example_hellojni_HelloJni_nativeTest(JNIEnv* env, jobject thiz)
+extern "C" void Java_com_example_hellojni_HelloJni_nativeTestMethods(JNIEnv* env, jobject thiz)
     {
-    using namespace Android;
     const std::string className = "com/example/hellojni/HelloJni";
 
-	utils::CallStaticMethod<void>(className.c_str(), "Test");
-    int res = utils::CallStaticMethod<int>(className.c_str(), "Test", (int)25, (int)25);
-    utils::CallStaticMethod<void>(className.c_str(), "Test", res);
+	std::string sRes = Android::CallStaticMethod<std::string>(className.c_str(), "TestMethod", "some");
+	float fRes = Android::CallStaticMethod<float>(className.c_str(), "TestMethod", sRes.c_str(), 4.2f);
+	Android::CallStaticMethod<void>(className.c_str(), "TestMethod", fRes);
     }

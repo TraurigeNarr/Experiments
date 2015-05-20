@@ -23,40 +23,48 @@ import android.os.Bundle;
 public class HelloJni extends Activity
 {
 	public static String mOutString = "";
-	static TextView tv = null;
-	static HelloJni instance = null;
-	public static final String TAG = "TestSample";
 
 	public native String  nativeTestSpeed();
+	public native String  nativeTestMethods();
 
-    /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
 
-        /* Create a TextView and set its content.
-         * the text is retrieved by calling a native
-         * function.
-         */
-		//nativeTest();
+		nativeTestMethods();
 		nativeTestSpeed();
 
-        tv = new TextView(this);
+        TextView tv = new TextView(this);
         tv.setText( mOutString );
         setContentView(tv);
-		instance = this;
-		
     }
 
 	public static void SetTime(long i, long j)
 	{
-	mOutString += "usual: " + i + ";\n wrapper: " + j + "\n";
-	mOutString += "j/i=" + (float)j/i;
+		mOutString += "usual: " + i + ";\n wrapper: " + j + "\n";
+		mOutString += "j/i=" + (float)j/i;
 	}
 
 	public static void TestMethod(int i)
 	{
+	}
+
+	public static String TestMethod(String par)
+	{
+		mOutString += "return String: " + par + "\n";
+		return par;
+	}
+
+	public static float TestMethod(String par, float x)
+	{
+		mOutString += "float String: " + par + " float=" + x  + "\n";
+		return x;
+	}
+
+	public static void TestMethod(float x)
+	{
+		mOutString += "void float=" + x  + "\n";
 	}
 
 	public static void Test()
@@ -75,30 +83,7 @@ public class HelloJni extends Activity
 		return i + j;
 	}
 
-    /* A native method that is implemented by the
-     * 'hello-jni' native library, which is packaged
-     * with this application.
-     */
     public native String  stringFromJNI();
-	public native void nativeTest();
-
-    /* This is another native method declaration that is *not*
-     * implemented by 'hello-jni'. This is simply to show that
-     * you can declare as many native methods in your Java code
-     * as you want, their implementation is searched in the
-     * currently loaded native libraries only the first time
-     * you call them.
-     *
-     * Trying to call this function will result in a
-     * java.lang.UnsatisfiedLinkError exception !
-     */
-    public native String  unimplementedStringFromJNI();
-
-    /* this is used to load the 'hello-jni' library on application
-     * startup. The library has already been unpacked into
-     * /data/data/com.example.hellojni/lib/libhello-jni.so at
-     * installation time by the package manager.
-     */
     static {
         System.loadLibrary("hello-jni");
     }

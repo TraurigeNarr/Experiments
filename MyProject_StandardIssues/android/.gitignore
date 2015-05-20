@@ -1,0 +1,18 @@
+bin
+gen
+obj
+libs/armeabi
+libs/armeabi-v7a
+
+# настройки eclipse-проекта для андроида
+.externalToolBuilders
+.settings
+lint.xml
+
+# настройки ant-проекта для андроида
+local.properties
+.idea/
+out/
+
+#лог сборки
+build.txt

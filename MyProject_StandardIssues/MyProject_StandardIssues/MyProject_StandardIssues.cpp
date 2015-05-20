@@ -331,6 +331,7 @@ namespace utils
 
 int _tmain(int argc, _TCHAR* argv[])
     {
+	time_t f;
     std::cout << "0 parameters\n";
     utils::CallStaticMethod<void>("a", "b");
     

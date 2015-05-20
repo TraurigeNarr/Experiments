@@ -64,6 +64,44 @@ extern "C" jstring Java_com_example_hellojni_HelloJni_stringFromJNI( JNIEnv* env
     return env->NewStringUTF("Hello from JNI !  Compiled with ABI");
 }
 
+extern "C" void Java_com_example_hellojni_HelloJni_nativeTestSpeed(JNIEnv* env, jobject thiz)
+	{
+	const std::string className = "com/example/hellojni/HelloJni";
+
+	const int COUNT = 1000000;
+
+	Android::JniClass clazz(env, className.c_str());
+
+	time_t t_begin = clock();
+
+	for (int i = 0; i < COUNT; ++i)
+		{
+		jmethodID method = env->GetStaticMethodID(clazz.get(), "TestMethod", "(I)V");
+		env->CallStaticVoidMethod(clazz.get(), method, 1);
+		}
+
+	long t_usual_end = clock() - t_begin;
+	
+	t_begin = clock();
+	int k = 1;
+	for (int i = 0; i < COUNT; ++i)
+		{
+		std::string signature_string = "(";
+		Android::utils::GetType(signature_string, k);
+		signature_string += ")";
+
+		signature_string += Android::utils::GetTypeName<void>();
+		jmethodID method = env->GetStaticMethodID(clazz.get(), "TestMethod", signature_string.c_str());
+		Android::utils::Impl<void>::CallStaticMethod(env, clazz.get(), method, k);
+		}
+
+	long t_wrapper_end = clock() - t_begin;
+	
+	Android::utils::CallStaticMethod<void>(className.c_str(), "SetTime", t_usual_end, t_wrapper_end);
+
+	}
+
+
 extern "C" void Java_com_example_hellojni_HelloJni_nativeTest(JNIEnv* env, jobject thiz)
     {
     using namespace Android;

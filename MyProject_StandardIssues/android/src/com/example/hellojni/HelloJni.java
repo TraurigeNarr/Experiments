@@ -26,6 +26,9 @@ public class HelloJni extends Activity
 	static TextView tv = null;
 	static HelloJni instance = null;
 	public static final String TAG = "TestSample";
+
+	public native String  nativeTestSpeed();
+
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -36,13 +39,25 @@ public class HelloJni extends Activity
          * the text is retrieved by calling a native
          * function.
          */
-		nativeTest();
+		//nativeTest();
+		nativeTestSpeed();
+
         tv = new TextView(this);
         tv.setText( mOutString );
         setContentView(tv);
 		instance = this;
 		
     }
+
+	public static void SetTime(long i, long j)
+	{
+	mOutString += "usual: " + i + ";\n wrapper: " + j + "\n";
+	mOutString += "j/i=" + (float)j/i;
+	}
+
+	public static void TestMethod(int i)
+	{
+	}
 
 	public static void Test()
 	{

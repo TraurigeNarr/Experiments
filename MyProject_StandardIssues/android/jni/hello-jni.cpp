@@ -70,13 +70,15 @@ extern "C" void Java_com_example_hellojni_HelloJni_nativeTestSpeed(JNIEnv* env, 
 
 	const int COUNT = 1000000;
 
-	Android::JniClass clazz(env, className.c_str());
+	
 
 	time_t t_begin = clock();
 
 	for (int i = 0; i < COUNT; ++i)
 		{
-		jmethodID method = env->GetStaticMethodID(clazz.get(), "TestMethod", "(I)V");
+		JNIEnv* _env = Android::getEnv();
+		Android::JniClass clazz(_env, className.c_str());
+		jmethodID method = _env->GetStaticMethodID(clazz.get(), "TestMethod", "(I)V");
 		env->CallStaticVoidMethod(clazz.get(), method, 1);
 		}
 

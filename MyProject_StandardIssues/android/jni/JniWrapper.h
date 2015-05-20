@@ -241,6 +241,12 @@ namespace Android
 
         //////////////////////////////////////////////
 
+		template <typename T>
+		std::string GetType(T val)
+			{
+			return GetTypeName<T>();
+			}
+
         void GetType(std::string&)
             {   }
 
@@ -317,12 +323,17 @@ namespace Android
 
         template <typename MethodType, typename... Args>
         MethodType CallStaticMethod(const char* className, const char* mname, Args... args)
-            {
-            std::string signature_string = "(";
-            GetType(signature_string, args...);
-            signature_string += ")";
+            {		
+			const size_t arg_num = sizeof...(Args);
+			std::string signatures[arg_num] = { GetType(args)... };
 
-            signature_string += GetTypeName<MethodType>();
+			std::string signature_string;
+			signature_string.reserve(15);
+			signature_string += "(";
+			for (size_t i = 0; i < arg_num; ++i)
+				signature_string += signatures[i];
+			signature_string += ")";
+			signature_string += GetTypeName<MethodType>();
 
             JNIEnv *env = getEnv();
             JniClass clazz(env, className);

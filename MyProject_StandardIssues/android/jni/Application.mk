@@ -15,3 +15,6 @@ APP_CFLAGS += -Wno-deprecated-register -Wno-deprecated-declarations -Wno-switch 
 
 # 4.8 toolchain defaults to dwarf-4, not compatible to NDK yet
 APP_CFLAGS += -g -gdwarf-2 -gstrict-dwarf
+
+APP_OPTIM := release
+APP_CFLAGS += -O3

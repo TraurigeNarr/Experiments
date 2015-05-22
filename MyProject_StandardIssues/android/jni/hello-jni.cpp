@@ -36,7 +36,7 @@ extern "C" void Java_com_example_hellojni_HelloJni_nativeTestSpeed(JNIEnv* env, 
 	{
 	const std::string className = "com/example/hellojni/HelloJni";
 
-	const int COUNT = 1000;
+	const int COUNT = 10000;
 
 	time_t t_begin = clock();
 

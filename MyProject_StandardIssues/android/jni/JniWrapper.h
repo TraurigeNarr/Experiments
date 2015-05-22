@@ -22,26 +22,6 @@ namespace Android
 		return env;
 		}
 
-    struct JniString //: boost::noncopyable
-        {
-        JNIEnv* m_env;
-        jstring m_jstr;
-
-        JniString(JNIEnv* env, const char* arg)
-            : m_env(env)
-            {
-            m_jstr = env->NewStringUTF(arg);
-            }
-
-        ~JniString()
-            {
-            if (m_jstr)
-                m_env->DeleteLocalRef(m_jstr);
-            }
-
-        jobject get() { return m_jstr; }
-        };
-
     class JniClass //: private boost::noncopyable
         {
         JNIEnv* m_env;
@@ -62,106 +42,111 @@ namespace Android
             jclass get() { return m_class; }
         };
 
-    struct JniObject //: boost::noncopyable
-        {
-        JniObject(JNIEnv*, jobject){ }
-        jobject get() { return jobject(); }
-        };
+	/////////////////////////////////////////////////////////
+
+	struct JObjectHolder
+		{
+		jobject jObject;
+		JNIEnv* m_env;
+
+		JObjectHolder()
+			: m_env(nullptr)
+			{}
+
+		JObjectHolder(JNIEnv* env, jobject obj)
+			: jObject(obj)
+			, m_env(env)
+			{}
+
+		~JObjectHolder()
+			{
+			if (jObject && m_env != nullptr)
+				m_env->DeleteLocalRef(jObject);
+			}
+
+		jobject get() { return jObject; }
+		};
 
     /////////////////////////////////////////////////////////
 
     struct JniHolder
         {
         jvalue val;
-        JniString jString;
-        JniObject jObject;
+		JObjectHolder jObject;
 
         // bool
         explicit JniHolder(JNIEnv *env, bool arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.z = arg;
             }
 
         // byte
         explicit JniHolder(JNIEnv *env, unsigned char arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.b = arg;
             }
 
         // char
         explicit JniHolder(JNIEnv *env, char arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.c = arg;
             }
 
         // short
         explicit JniHolder(JNIEnv *env, short arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.s = arg;
             }
 
         // int
         explicit JniHolder(JNIEnv *env, int arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.i = arg;
             }
 
         // long
         explicit JniHolder(JNIEnv *env, long arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.j = arg;
             }
 
         // float
         explicit JniHolder(JNIEnv *env, float arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.f = arg;
             }
 
         // double
         explicit JniHolder(JNIEnv *env, double arg)
-            : jString(env, nullptr)
-            , jObject(env, jobject())
+            : jObject(env, jobject())
             {
             val.d = arg;
             }
 
         // string
         explicit JniHolder(JNIEnv *env, const char* arg)
-            : jString(env, arg)
-            , jObject(env, jobject())
+			: jObject(env, env->NewStringUTF(arg))
             {
-            val.l = jString.get();
+            val.l = jObject.get();
             }
 
         // object
         explicit JniHolder(JNIEnv *env, jobject arg)
-            : jString(env, nullptr)
-            , jObject(env, arg)
+            : jObject(env, arg)
             {
             val.l = jObject.get();
             }
 
         ////////////////////////////////////////////////////////
 
-        operator jvalue()
-            {
-            return val;
-            }
+		operator jvalue() { return val; }
 
         jvalue get() { return val; }
         };

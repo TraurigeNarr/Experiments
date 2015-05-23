@@ -64,7 +64,17 @@ namespace Android
 				m_env->DeleteLocalRef(jObject);
 			}
 
+		jobject detach()
+			{
+			jobject temp = jObject;
+			jObject = NULL;
+			return temp;
+			}
+
 		jobject get() { return jObject; }
+
+		JNIEnv* getEnv() { return m_env; }
+
 		};
 
     /////////////////////////////////////////////////////////
@@ -73,6 +83,14 @@ namespace Android
         {
         jvalue val;
 		JObjectHolder jObject;
+
+		// move constructor
+		JniHolder(JniHolder&& other)
+			: jObject(other.jObject.getEnv(), jObject.detach())
+			, val(other.val)
+			{
+
+			}
 
         // bool
         explicit JniHolder(JNIEnv *env, bool arg)
@@ -283,7 +301,10 @@ namespace Android
 			const int size = sizeof...(args);
 			if (size != 0)
 				{
-				jvalue vals[size] = { static_cast<jvalue>(JniHolder(env, args))... };
+				JniHolder holders[size] = { std::move(JniHolder(env, args))... };
+				jvalue vals[size];
+				for (size_t i = 0; i < size; ++i)
+					vals[i] = static_cast<jvalue>(holders[i]);
 				return env->CallStaticVoidMethodA(clazz, method, vals);
 				}
 

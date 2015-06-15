@@ -2,6 +2,9 @@
 //
 
 #include "stdafx.h"
+
+#include "TemplatesTest.h"
+
 #include <iostream>
 
 #include <string>
@@ -331,7 +334,13 @@ namespace utils
 
 int _tmain(int argc, _TCHAR* argv[])
     {
-	time_t f;
+	Templates::Test<float>::RetFunc(1, 2);
+	char test[4] { 0, 0, 1, 0 };
+	int res = Templates::ReadType<int>(test, 0);
+	std::cout << "result = " << res << std::endl;
+
+	Templates::TestFunction();
+
     std::cout << "0 parameters\n";
     utils::CallStaticMethod<void>("a", "b");
     
